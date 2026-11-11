@@ -1,0 +1,333 @@
+Copy everything in this code block and paste it into the GitHub editor:
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Football Predictor</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101713;
+      --panel: #19231d;
+      --muted: #a7b4aa;
+      --green: #9be564;
+      --line: #2d3b31;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: #f3f6f2;
+      font: 16px/1.5 system-ui, sans-serif;
+    }
+
+    header {
+      padding: 26px 20px;
+      background: #17251a;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .wrap { width: min(960px, 100% - 32px); margin: auto; }
+    h1 { margin: 0; font-size: 1.8rem; }
+    header p { margin: 4px 0 0; color: var(--muted); }
+
+    main { padding: 24px 0 48px; }
+    .toolbar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    select, input, button {
+      font: inherit;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+    }
+
+    select, input { background: #101713; color: #fff; }
+    button {
+      cursor: pointer;
+      background: var(--green);
+      color: #15200f;
+      border: 0;
+      font-weight: 700;
+    }
+
+    button:hover { filter: brightness(1.08); }
+    .secondary { background: #27352b; color: #fff; border: 1px solid var(--line); }
+
+    .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    h2 { margin: 0 0 14px; font-size: 1.2rem; }
+    .match { padding: 14px 0; border-top: 1px solid var(--line); }
+    .match:first-of-type { border-top: 0; }
+    .teams { display: flex; justify-content: space-between; gap: 10px; font-weight: 650; }
+    .date, .hint, .empty { color: var(--muted); font-size: .9rem; }
+
+    .prediction { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    .prediction input { width: 62px; text-align: center; }
+    .versus { color: var(--muted); }
+    .status { margin-left: auto; color: var(--green); font-size: .85rem; }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 1fr 54px 54px;
+      gap: 8px;
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .table-head { color: var(--muted); font-size: .85rem; border-top: 0; }
+    .num { text-align: right; }
+    .notice { margin-top: 18px; color: var(--muted); font-size: .88rem; }
+
+    @media (max-width: 680px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>⚽ Football Predictor</h1>
+      <p>Make your picks. Climb your league table.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="toolbar">
+      <label for="league">Choose a league:</label>
+      <select id="league">
+        <option value="Premier League">Premier League</option>
+        <option value="Ligue 1">Ligue 1</option>
+      </select>
+      <button id="reset" class="secondary">Reset my predictions</button>
+    </div>
+
+    <div class="grid">
+      <section class="panel">
+        <h2 id="matchesTitle">Matches</h2>
+        <div id="matches"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Season leaderboard</h2>
+        <div class="table-row table-head">
+          <span>Player</span>
+          <span class="num">Points</span>
+          <span class="num">Picks</span>
+        </div>
+        <div id="leaderboard"></div>
+        <p class="notice">
+          Demo leaderboard for this prototype. A shared leaderboard needs an
+          online database and user accounts.
+        </p>
+      </section>
+    </div>
+
+    <p class="notice">
+      Example matches and results only—not real fixtures. Scoring: 3 points
+      for an exact score, 1 for the correct outcome, 0 otherwise.
+    </p>
+  </main>
+
+  <script>
+    const demoMatches = {
+      "Premier League": [
+        {
+          id: "pl1",
+          date: "Example fixture",
+          home: "Northside FC",
+          away: "Riverside United",
+          result: [2, 1]
+        },
+        {
+          id: "pl2",
+          date: "Example fixture",
+          home: "Harbor Town",
+          away: "Kingsfield",
+          result: [1, 1]
+        },
+        {
+          id: "pl3",
+          date: "Upcoming example",
+          home: "Oak Athletic",
+          away: "Northside FC",
+          result: null
+        }
+      ],
+      "Ligue 1": [
+        {
+          id: "l1",
+          date: "Example fixture",
+          home: "Montclair",
+          away: "Port Lumière",
+          result: [0, 2]
+        },
+        {
+          id: "l2",
+          date: "Example fixture",
+          home: "Rocheville",
+          away: "Saint-Clair",
+          result: [2, 2]
+        },
+        {
+          id: "l3",
+          date: "Upcoming example",
+          home: "Port Lumière",
+          away: "Valmont",
+          result: null
+        }
+      ]
+    };
+
+    const storageKey = "footballPredictorDemo";
+    const saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    const leagueSelect = document.getElementById("league");
+
+    function picksFor(league) {
+      if (!saved[league]) saved[league] = {};
+      return saved[league];
+    }
+
+    function save() {
+      localStorage.setItem(storageKey, JSON.stringify(saved));
+    }
+
+    function outcome(homeScore, awayScore) {
+      if (homeScore === awayScore) return "draw";
+      return homeScore > awayScore ? "home" : "away";
+    }
+
+    function points(match, pick) {
+      if (!match.result || !pick) return 0;
+
+      const [resultHome, resultAway] = match.result;
+
+      if (pick.home === resultHome && pick.away === resultAway) return 3;
+
+      return outcome(pick.home, pick.away) === outcome(resultHome, resultAway)
+        ? 1
+        : 0;
+    }
+
+    function render() {
+      const league = leagueSelect.value;
+      const matches = demoMatches[league];
+      const picks = picksFor(league);
+
+      document.getElementById("matchesTitle").textContent = league + " matches";
+
+      const matchesElement = document.getElementById("matches");
+      matchesElement.innerHTML = "";
+
+      matches.forEach(match => {
+        const pick = picks[match.id] || {};
+        const card = document.createElement("div");
+        card.className = "match";
+
+        const resultText = match.result
+          ? `Result: ${match.result[0]}–${match.result[1]} · Your points: ${points(match, pick)}`
+          : "Make your prediction";
+
+        card.innerHTML = `
+          <div class="teams">
+            <span>${match.home}</span>
+            <span>${match.away}</span>
+          </div>
+          <div class="date">${match.date} · ${resultText}</div>
+          <div class="prediction">
+            <input type="number" min="0" max="20"
+              aria-label="${match.home} predicted goals"
+              value="${pick.home ?? ""}" placeholder="0">
+            <span class="versus">–</span>
+            <input type="number" min="0" max="20"
+              aria-label="${match.away} predicted goals"
+              value="${pick.away ?? ""}" placeholder="0">
+            <button type="button">Save pick</button>
+            <span class="status"></span>
+          </div>`;
+
+        const inputs = card.querySelectorAll("input");
+        const button = card.querySelector("button");
+        const status = card.querySelector(".status");
+
+        button.addEventListener("click", () => {
+          const homeScore = Number(inputs[0].value);
+          const awayScore = Number(inputs[1].value);
+
+          if (
+            inputs[0].value === "" ||
+            inputs[1].value === "" ||
+            !Number.isInteger(homeScore) ||
+            !Number.isInteger(awayScore) ||
+            homeScore < 0 ||
+            awayScore < 0 ||
+            homeScore > 20 ||
+            awayScore > 20
+          ) {
+            status.textContent = "Enter scores from 0 to 20";
+            return;
+          }
+
+          picks[match.id] = { home: homeScore, away: awayScore };
+          save();
+          render();
+        });
+
+        matchesElement.appendChild(card);
+      });
+
+      const scoredPicks = matches
+        .map(match => ({ match, pick: picks[match.id] }))
+        .filter(item => item.pick);
+
+      const totalPoints = scoredPicks.reduce(
+        (sum, item) => sum + points(item.match, item.pick),
+        0
+      );
+
+      document.getElementById("leaderboard").innerHTML = `
+        <div class="table-row">
+          <span>You</span>
+          <span class="num">${totalPoints}</span>
+          <span class="num">${scoredPicks.length}</span>
+        </div>
+        <div class="table-row">
+          <span>Example player</span>
+          <span class="num">4</span>
+          <span class="num">2</span>
+        </div>
+        <div class="table-row">
+          <span>Another demo</span>
+          <span class="num">2</span>
+          <span class="num">2</span>
+        </div>`;
+    }
+
+    document.getElementById("reset").addEventListener("click", () => {
+      delete saved[leagueSelect.value];
+      save();
+      render();
+    });
+
+    leagueSelect.addEventListener("change", render);
+    render();
+  </script>
+</body>
+</html>
+```
